@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
-from .models import URLMapping
+from ..models import URLMapping
 
 
 class URLShortenSerializer(serializers.Serializer):

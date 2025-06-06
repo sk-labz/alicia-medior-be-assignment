@@ -7,7 +7,7 @@ from django.db import transaction
 import logging
 
 from .models import URLMapping
-from .serializers import URLShortenSerializer, URLShortenResponseSerializer
+from .serializers import URLShortenSerializer, URLShortenResponseSerializer, URLStatsSerializer
 
 
 logger = logging.getLogger(__name__)
@@ -79,6 +79,9 @@ def redirect_url(request, short_code):
     try:
         url_mapping = get_object_or_404(URLMapping, short_code=short_code)
         
+        # Increment access count
+        url_mapping.increment_access_count()
+
         logger.info(f"Redirecting {short_code} to {url_mapping.original_url}")
         
         return redirect(url_mapping.original_url)
@@ -90,3 +93,33 @@ def redirect_url(request, short_code):
     except Exception as e:
         logger.error(f"Unexpected error in redirect_url: {str(e)}")
         return HttpResponseServerError("An unexpected error occurred")
+
+
+
+@api_view(['GET'])
+def url_stats(request, short_code):
+    try:
+        url_mapping = get_object_or_404(URLMapping, short_code=short_code)
+        
+        serializer = URLStatsSerializer(url_mapping)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+    except Http404:
+        logger.warning(f"Stats requested for non-existent short code: {short_code}")
+        return Response(
+            {
+                'error': 'Short URL not found',
+                'details': {'short_code': f"'{short_code}' does not exist"}
+            },
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    except Exception as e:
+        logger.error(f"Unexpected error in url_stats: {str(e)}")
+        return Response(
+            {
+                'error': 'Internal server error',
+                'details': {'message': 'An unexpected error occurred'}
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
