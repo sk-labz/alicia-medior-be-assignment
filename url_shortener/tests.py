@@ -130,9 +130,34 @@ class URLShortenerAPITests(APITestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, self.test_url)
     
-    
+
     def test_redirect_nonexistent_code(self):
         redirect_url = reverse('redirect_url', kwargs={'short_code': 'nonexistent'})
         response = self.client.get(redirect_url)
         
         self.assertEqual(response.status_code, 404)
+
+    def test_url_stats_success(self):
+        # Create a URL mapping first
+        mapping = URLMapping.objects.create(
+            original_url=self.test_url,
+            short_code="test123",
+            access_count=5
+        )
+        
+        # Test stats endpoint
+        stats_url = reverse('url_stats', kwargs={'short_code': 'test123'})
+        response = self.client.get(stats_url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response_data = response.json()
+        
+        self.assertEqual(response_data['short_code'], 'test123')
+        self.assertEqual(response_data['original_url'], self.test_url)
+        self.assertEqual(response_data['access_count'], 5)
+    
+    def test_url_stats_nonexistent(self):
+        stats_url = reverse('url_stats', kwargs={'short_code': 'nonexistent'})
+        response = self.client.get(stats_url)
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
