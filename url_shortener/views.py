@@ -1,6 +1,8 @@
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from django.shortcuts import get_object_or_404, redirect
+from django.http import Http404, HttpResponseNotFound, HttpResponseServerError
 from django.db import transaction
 import logging
 
@@ -71,3 +73,20 @@ def shorten_url(request):
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+def redirect_url(request, short_code):
+    try:
+        url_mapping = get_object_or_404(URLMapping, short_code=short_code)
+        
+        logger.info(f"Redirecting {short_code} to {url_mapping.original_url}")
+        
+        return redirect(url_mapping.original_url)
+        
+    except Http404:
+        logger.warning(f"Short code not found: {short_code}")
+        return HttpResponseNotFound(f"Short URL '{short_code}' not found")
+    
+    except Exception as e:
+        logger.error(f"Unexpected error in redirect_url: {str(e)}")
+        return HttpResponseServerError("An unexpected error occurred")
