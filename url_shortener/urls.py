@@ -2,5 +2,5 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Add your app's URL patterns here
+    path('shorten/', views.shorten_url, name='shorten_url'),
 ]
