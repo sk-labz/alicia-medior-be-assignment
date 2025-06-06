@@ -1,7 +1,10 @@
-from django.test import TestCase
+from django.test import TestCase, Client
+from django.urls import reverse
 from rest_framework.test import APITestCase
+from rest_framework import status
 from .models import URLMapping
 from .serializers import URLShortenSerializer
+import json
 
 
 class URLMappingModelTests(TestCase):
@@ -57,3 +60,56 @@ class URLShortenSerializerTests(TestCase):
         
         self.assertFalse(serializer.is_valid())
         self.assertIn('url', serializer.errors)
+
+
+class URLShortenerAPITests(APITestCase):
+    def setUp(self):
+        self.client = Client()
+        self.shorten_url = reverse('shorten_url')
+        self.test_url = "https://www.example.com/test"
+    
+    def test_shorten_url_success(self):
+        data = {"url": self.test_url}
+        response = self.client.post(
+            self.shorten_url,
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        response_data = response.json()
+        
+        self.assertIn('short_code', response_data)
+        self.assertIn('short_url', response_data)
+        self.assertEqual(response_data['original_url'], self.test_url)
+    
+    def test_shorten_url_duplicate(self):
+        # Create first mapping
+        data = {"url": self.test_url}
+        response1 = self.client.post(
+            self.shorten_url,
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        
+        # Try to create same URL again
+        response2 = self.client.post(
+            self.shorten_url,
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+        self.assertEqual(response1.json()['short_code'], response2.json()['short_code'])
+    
+    def test_shorten_invalid_url(self):
+        data = {"url": "not-a-valid-url"}
+        response = self.client.post(
+            self.shorten_url,
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.json())

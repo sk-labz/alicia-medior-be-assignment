@@ -91,3 +91,14 @@ After submission, we may ask you some questions, such as:
 
 ## Good Luck & Have Fun!
 Happy coding! 😃 If you have any questions, feel free to reach out.
+
+## Task Log 
+# 1. shorten URL example; 
+run in command line; 
+`curl -X POST http://localhost:8000/api/shorten/ -H "Content-Type: application/json" -d '{"url": "https://www.yahoo.com"}' -v`
+should return something like; 
+`....
+{"short_code":"SndRng","short_url":"http://localhost:8000/short/SndRng/","original_url":"https://www.yahoo.com","created_at":"2025-06-06T01:14:24.919680Z"}
+`
+and update database 
+
