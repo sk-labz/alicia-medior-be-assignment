@@ -102,3 +102,5 @@ should return something like;
 `
 and update database 
 
+# 2. redirect from shortened URL; 
+Running `http://localhost:8000/api/short/SndRng/` will now redirect

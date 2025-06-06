@@ -113,3 +113,26 @@ class URLShortenerAPITests(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('error', response.json())
+
+
+    def test_redirect_url_success(self):
+        # Create a URL mapping first
+        mapping = URLMapping.objects.create(
+            original_url=self.test_url,
+            short_code="test123"
+        )
+        
+
+        # Test redirection
+        redirect_url = reverse('redirect_url', kwargs={'short_code': 'test123'})
+        response = self.client.get(redirect_url)
+        
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.test_url)
+    
+    
+    def test_redirect_nonexistent_code(self):
+        redirect_url = reverse('redirect_url', kwargs={'short_code': 'nonexistent'})
+        response = self.client.get(redirect_url)
+        
+        self.assertEqual(response.status_code, 404)
