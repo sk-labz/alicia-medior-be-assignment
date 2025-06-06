@@ -61,6 +61,13 @@ class URLShortenSerializerTests(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn('url', serializer.errors)
 
+    def test_localhost_url_rejection(self):
+        data = {"url": "http://localhost:8000"}
+        serializer = URLShortenSerializer(data=data)
+        
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('url', serializer.errors)
+    
 
 class URLShortenerAPITests(APITestCase):
     def setUp(self):
@@ -161,3 +168,15 @@ class URLShortenerAPITests(APITestCase):
         response = self.client.get(stats_url)
         
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_health_check(self):
+        health_url = reverse('health_check')
+        response = self.client.get(health_url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response_data = response.json()
+        
+        self.assertEqual(response_data['status'], 'healthy')
+        self.assertIn('timestamp', response_data)
+        self.assertIn('version', response_data)
+    

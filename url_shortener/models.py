@@ -24,6 +24,10 @@ class URLMapping(models.Model):
     last_accessed = models.DateTimeField(null=True, blank=True)
     access_count = models.PositiveIntegerField(default=0)
     
+    
+    creator_ip = models.GenericIPAddressField(null=True, blank=True)
+    
+
     class Meta:
         ordering = ['-created_at']
         indexes = [

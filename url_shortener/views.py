@@ -1,10 +1,17 @@
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django.shortcuts import get_object_or_404, redirect
 from django.http import Http404, HttpResponseNotFound, HttpResponseServerError
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_headers
+from django.core.cache import cache
+from django.utils.decorators import method_decorator
+from django.views.generic import View
 from django.db import transaction
 import logging
+from django.utils import timezone
 
 from .models import URLMapping
 from .serializers import URLShortenSerializer, URLShortenResponseSerializer, URLStatsSerializer
@@ -13,7 +20,16 @@ from .serializers import URLShortenSerializer, URLShortenResponseSerializer, URL
 logger = logging.getLogger(__name__)
 
 
+class URLShortenerRateThrottle(AnonRateThrottle):
+    scope = 'url_shortener'
+
+
+class URLAccessRateThrottle(AnonRateThrottle):
+    scope = 'url_access'
+
+
 @api_view(['POST'])
+@throttle_classes([URLShortenerRateThrottle])
 def shorten_url(request):
     try:
         serializer = URLShortenSerializer(data=request.data)
@@ -75,13 +91,15 @@ def shorten_url(request):
         )
 
 
+@cache_page(60 * 15)  # Cache for 15 minutes
+@vary_on_headers('User-Agent')
 def redirect_url(request, short_code):
     try:
         url_mapping = get_object_or_404(URLMapping, short_code=short_code)
         
         # Increment access count
         url_mapping.increment_access_count()
-
+        
         logger.info(f"Redirecting {short_code} to {url_mapping.original_url}")
         
         return redirect(url_mapping.original_url)
@@ -95,8 +113,8 @@ def redirect_url(request, short_code):
         return HttpResponseServerError("An unexpected error occurred")
 
 
-
 @api_view(['GET'])
+@cache_page(60 * 5)  # Cache stats for 5 minutes
 def url_stats(request, short_code):
     try:
         url_mapping = get_object_or_404(URLMapping, short_code=short_code)
@@ -123,3 +141,21 @@ def url_stats(request, short_code):
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['GET'])
+def health_check(request):
+    return Response({
+        'status': 'healthy',
+        'timestamp': timezone.now().isoformat(),
+        'version': '1.0.0'
+    })
+
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
